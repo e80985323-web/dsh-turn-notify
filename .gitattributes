@@ -1,0 +1,16 @@
+# Normalise line endings for text files in the repository.
+* text=auto eol=lf
+
+# lib/toast.ps1 and lib/focus.ps1 are Windows PowerShell 5.1 scripts and must
+# keep their EXACT bytes: toast.ps1 is deliberately pure ASCII + UTF-8 BOM.
+#
+# Why this matters (a real bug this project already hit): PowerShell 5.1 decodes
+# .ps1 files using the ANSI code page unless a UTF-8 BOM is present. Without the
+# BOM, a multi-byte sequence in a comment swallowed the following newline, so the
+# line after it was folded into the comment -- the script still *parsed*, it just
+# silently stopped setting activationType="protocol" on the toast, and
+# click-to-focus died while every other check stayed green.
+#
+# `-text` disables all line-ending and encoding conversion, so a fresh clone gets
+# byte-identical scripts no matter how core.autocrlf is configured locally.
+*.ps1 -text

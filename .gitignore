@@ -1,0 +1,12 @@
+node_modules/
+pnpm-lock.yaml
+
+# Runtime state lives in DSH_HOME, not here -- but never publish it if it leaks in.
+*.log
+.dsh-turn-notify.json
+.dsh-turn-notify.log
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
