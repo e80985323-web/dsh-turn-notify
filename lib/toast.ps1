@@ -2,6 +2,8 @@
 #
 # Usage: powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass
 #          -WindowStyle Hidden -File toast.ps1 -PayloadFile <payload.json>
+#          [-XmlOnly]  return the built toast XML without showing it
+#          [-Diagnose] return the XML that was really sent (this one shows)
 #
 # payload.json (UTF-8, BOM recommended): { "title": "...", "body": "..." }
 #
@@ -28,7 +30,8 @@ param(
   [Parameter(Mandatory = $true)][string]$PayloadFile,
   [string]$Scheme = 'dsh-turn-notify',
   [switch]$NoProtocol,
-  [switch]$Diagnose
+  [switch]$Diagnose,
+  [switch]$XmlOnly
 )
 
 $ErrorActionPreference = 'Continue'
@@ -148,7 +151,10 @@ try {
   # -Diagnose returns the XML that is actually sent. A toast's click behaviour
   # is decided entirely by this XML, so "the script thinks it set it" and "it
   # really got set" must be separable -- otherwise debugging is guesswork.
-  if ($Diagnose) { $result.xml = $template.GetXml() }
+  # -XmlOnly returns that same XML but stops before Show(), so an automated
+  # guard can re-check it on every run without spamming the notification center.
+  if ($Diagnose -or $XmlOnly) { $result.xml = $template.GetXml() }
+  if ($XmlOnly) { Write-Result $result; exit 0 }
 
   $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
 
@@ -177,7 +183,7 @@ try {
   $result.error = "winrt: $($_.Exception.Message)"
 }
 
-if ($Diagnose) {
+if ($Diagnose -or $XmlOnly) {
   Write-Result $result
   exit 0
 }

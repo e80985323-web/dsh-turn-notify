@@ -21,9 +21,14 @@
     "lib/notify.js",
     "lib/toast.ps1",
     "lib/focus.ps1",
+    "scripts/ps1-guard.mjs",
     "cordis.patch.yml",
     "README.md"
   ],
+  "scripts": {
+    "guard": "node scripts/ps1-guard.mjs",
+    "test": "node scripts/ps1-guard.mjs && node scripts/ps1-guard.mjs --selftest"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

@@ -1,5 +1,11 @@
 # dsh-turn-notify
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-0078D4.svg)
+![PowerShell 5.1](https://img.shields.io/badge/PowerShell-5.1-5391FE.svg)
+![Node 18+](https://img.shields.io/badge/node-%3E%3D18-339933.svg)
+[![GitHub tag](https://img.shields.io/github/v/tag/e80985323-web/dsh-turn-notify)](https://github.com/e80985323-web/dsh-turn-notify/tags)
+
 DSH Desktop 的**右下角通知**插件：agent 每轮回复结束后弹一下。
 
 ## 它做什么
@@ -160,13 +166,13 @@ curl http://127.0.0.1:43129/dsh-turn-notify/log.json
 | 子代理屏蔽 | ✅ A/B 对照：关掉会提醒，开着不提醒（同一真实子代理会话） |
 | 总开关 kill-switch | ✅ `enabled=false` 后经历真实轮次，`seq` 不变 |
 | 宿主逻辑单元测试 | ✅ 28/28（五种 turn/end kind、子代理、限流、畸形事件、Markdown 清理、从未上报焦点…） |
-| PS 脚本守卫 | ✅ 10/10（BOM、纯 ASCII、真实解析器、`-Diagnose` 取回的真实 XML 必须带 protocol 激活） |
+| PS 脚本守卫 | ✅ **随包发布**：`scripts/ps1-guard.mjs`，10 项检查全过；另有 5 个变异用例证明它**不是空转**（见「开发自检」） |
 | 未污染其他插件 | ✅ 鲸鱼挂件/侧边栏/输入框均正常 |
 
 > **关于这张表的读法**：它是作者在本机上逐项实测的记录，不是 CI 结果。
-> 表里提到的测试与取证脚本（`ps1-guard.mjs`、`auth.mjs`、宿主逻辑单测）
-> 属于当时的开发环境，**没有随这个包一起发布** —— 所以「28/28」「10/10」
-> 是当时的结论，不是你在这个仓库里能直接复跑的东西。
+> 其中 **PS 脚本守卫已经随包发布**（`scripts/ps1-guard.mjs`，`npm test` 可直接复跑）；
+> 但**取证脚本 `auth.mjs` 和宿主逻辑单测（28/28）仍留在当时的开发环境，没有发布** ——
+> 那两行是当时的结论，不是你在这个仓库里能直接复跑的东西。
 
 ### 点击跳转的 A/B/C 对照
 
@@ -197,10 +203,14 @@ curl http://127.0.0.1:43129/dsh-turn-notify/log.json
   下一行 `if ($Diagnose) {...}` 被并进注释 —— 脚本**照样解析通过**，只是静默少执行一条语句。
   后果：toast 不再带 `activationType="protocol"`，**点击跳转悄悄失效**，
   而其他所有检查（发得出去、能看见、窗口健康）全都是绿的。
-  现在 `ps1-guard.mjs` 每次都会查：BOM 在不在、正文是否纯 ASCII、
-  真实 PS 解析器是否报错，并且**用 `-Diagnose` 取回真正发出去的那段 XML**，
-  断言它确实带 `activationType="protocol"` —— 让「代码以为设了」和「toast 真的带了」
-  不可能再悄悄分家。
+  所以这个坑现在有自动守卫：`scripts/ps1-guard.mjs`（**随包发布**，`npm test`）。
+  它查 BOM 在不在、正文是否纯 ASCII、真实 PS 5.1 解析器是否报错，并且**回读
+  toast 真正据以构建的那段 XML**，断言它确实带 `activationType="protocol"` ——
+  让「代码以为设了」和「toast 真的带了」不可能再悄悄分家。
+  默认走 `-XmlOnly`（只回 XML、不弹通知，可反复跑），`--live` 才用 `-Diagnose` 真发一条；
+  `--selftest` 用 4 个变异副本证明守卫**不是空转** —— 一个永远通过的守卫比没有守卫更糟。
+  写完这份 README 之后它立刻就派上用场了：**一次普通编辑把 `toast.ps1` 的 BOM 弄丢了，
+  守卫当场报 FAIL**（见「开发自检」）。
 - **用 URL 参数判断「是否在桌面版里」不可行**：harness 的 token 鉴权会 303 跳到不带
   query 的裸路径，`dsh-desktop-mode` 到不了页面。改用 User-Agent。
 - **「点完在前台」这类指标要先跑对照组**：本机上窗口会自己还原，该指标在对照组里
@@ -213,6 +223,33 @@ curl http://127.0.0.1:43129/dsh-turn-notify/log.json
   当时的取证脚本统一走 `auth.mjs`（每次从 `logs\harness.log` 取**最新** token 去换
   cookie）。同理，`%LOCALAPPDATA%\Temp\dsh-token.txt` 里存的可能是**旧** token，
   别把它当权威来源 —— 这个文件正是把上一条坑伪装成「插件故障」的原因。
+
+## 开发自检：PS 脚本守卫
+
+```powershell
+npm test                            # 检查 lib/*.ps1 + 证明守卫本身有牙齿（5 个变异用例）
+npm run guard                       # 只检查 lib/*.ps1
+node scripts/ps1-guard.mjs --live   # 额外用 -Diagnose 真发一条 toast
+node scripts/ps1-guard.mjs <目录>    # 换个目录检查（变异测试就是这么跑自己的）
+```
+
+10 项检查，逐条对应一个**真踩过的坑**，不是通用 lint：
+
+| 检查 | 为什么 |
+| --- | --- |
+| BOM 在不在 | PS 5.1 对无 BOM 的 `.ps1` 按系统代码页解码 —— 就是那个静默失效的根因 |
+| 正文是否纯 ASCII | 只有多字节字符才会触发上一条；纯 ASCII 则任何代码页解出来都一样 |
+| 行尾（仅报告） | PS 5.1 两种都认，所以只报不判，不制造假警报 |
+| 真实 PS 5.1 解析器 | 拦住语法级破坏（`pwsh` 7 加载不了 WinRT，所以这里必须用 `powershell.exe`） |
+| 回读 toast XML 必须带 protocol 激活 | 直接盯历史 bug 的**后果**，而不是盯「代码里有没有写那行」 |
+| 宿主必须用 `powershell.exe` | `pwsh` 7 加载不了 `[Windows.UI.Notifications.*]`，toast 会整个失败 |
+
+守卫会认环境：机器上没装 DSH Desktop（协议注册不上）或没有 WinRT 时，对应检查报
+`SKIP` 并说明原因，**不会**把「这台机器测不了」谎报成「代码坏了」。
+
+`--selftest` 是给守卫自己做的变异测试：把 `toast.ps1` 故意改坏 4 种方式
+（去 BOM / 加中文注释 / 破坏语法 / 删掉协议激活两行），断言守卫**必须**失败；
+另加一个未改动副本作**对照**（对照必须通过，否则说明测试台本身是错的，其余结果不作数）。
 
 ## 系统通知走的是哪条路
 
