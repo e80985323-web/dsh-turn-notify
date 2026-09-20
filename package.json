@@ -1,7 +1,7 @@
 {
   "name": "dsh-turn-notify",
-  "version": "0.2.0",
-  "description": "DSH Desktop 右下角通知：agent 每轮回复结束后，窗口内弹右下角卡片；窗口失焦/最小化时改弹 Windows 系统通知；点击通知可跳回 DSH Desktop",
+  "version": "0.3.0",
+  "description": "DSH Desktop 右下角通知：agent 每轮回复结束后、以及模型在等你回答/批准时，窗口内弹右下角卡片；窗口失焦/最小化时改弹 Windows 系统通知；点击通知可跳回 DSH Desktop",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -22,12 +22,16 @@
     "lib/toast.ps1",
     "lib/focus.ps1",
     "scripts/ps1-guard.mjs",
+    "scripts/host-test.mjs",
+    "scripts/client-test.mjs",
     "cordis.patch.yml",
     "README.md"
   ],
   "scripts": {
     "guard": "node scripts/ps1-guard.mjs",
-    "test": "node scripts/ps1-guard.mjs && node scripts/ps1-guard.mjs --selftest"
+    "test:host": "node scripts/host-test.mjs",
+    "test:client": "node scripts/client-test.mjs",
+    "test": "node scripts/host-test.mjs && node scripts/client-test.mjs && node scripts/ps1-guard.mjs && node scripts/ps1-guard.mjs --selftest"
   },
   "dsh": {
     "bundle": {
@@ -36,6 +40,9 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
   },
   "repository": {
     "type": "git",

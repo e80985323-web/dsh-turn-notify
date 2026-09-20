@@ -10,3 +10,6 @@ pnpm-lock.yaml
 .DS_Store
 Thumbs.db
 *.swp
+
+# Local working backups -- not part of the plugin.
+.backup-*/
